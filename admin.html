@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login | Nordil-BH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="admin-container">
+    <img src="logo.png" class="logo" alt="Nordil" />
+    <h2>Entrar</h2>
+
+    <form id="loginForm">
+  <input id="email" type="email" placeholder="E-mail" required />
+  <input id="password" type="password" placeholder="Senha" required />
+
+  <button type="submit" class="btn btn-primary">Entrar</button>
+
+  <!-- Esqueci minha senha: abaixo do Entrar -->
+  <button id="forgotBtn" type="button" class="btn btn-secondary">Esqueci minha senha</button>
+</form>
+
+<div id="loginMsg" class="feedback-msg"></div>
+
+
+ <script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import { firebaseConfig } from "./firebaseConfig.js";
+
+  // Firebase
+  const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Elementos
+  const loginForm = document.getElementById("loginForm");
+  const forgotBtn = document.getElementById("forgotBtn");
+  const loginMsg  = document.getElementById("loginMsg");
+
+  // Se já estiver logado, vai para o dashboard
+  onAuthStateChanged(auth, (user) => { if (user) window.location.href = "dashboard.html"; });
+
+  // Login
+  loginForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    loginMsg.textContent = "Entrando...";
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged fará o redirect
+    } catch (err) {
+      const map = {
+        "auth/invalid-credential": "E-mail ou senha inválidos.",
+        "auth/invalid-email": "E-mail inválido.",
+        "auth/user-disabled": "Usuário desativado.",
+        "auth/too-many-requests": "Muitas tentativas. Tente novamente em alguns minutos."
+      };
+      loginMsg.textContent = map[err.code] || ("Erro de login: " + (err?.message || err));
+    }
+  });
+
+  // Esqueci minha senha (envia e-mail com link para reset.html)
+  forgotBtn?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("email").value.trim();
+    if (!email) { loginMsg.textContent = "Digite seu e-mail acima."; return; }
+
+    try {
+      forgotBtn.disabled = true;
+      const resetUrl = `${window.location.origin}/reset.html`; // sua página de redefinição
+      await sendPasswordResetEmail(auth, email, {
+        url: resetUrl,
+        handleCodeInApp: true
+      });
+      // mensagem "segura" (não revela se o e-mail existe)
+      loginMsg.textContent = "Se existir uma conta para esse e-mail, enviaremos um link para redefinir a senha.";
+    } catch (err) {
+      const map = {
+        "auth/invalid-email": "E-mail inválido.",
+        "auth/too-many-requests": "Muitas tentativas. Tente novamente em alguns minutos."
+      };
+      loginMsg.textContent = map[err.code] || ("Não foi possível enviar: " + (err?.message || err));
+    } finally {
+      forgotBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>

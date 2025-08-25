@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nordil-BH | Painel de Ponto</title>
+
+  <!-- Estilos do projeto -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Chart.js e SheetJS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <!-- Topbar simples -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <img src="logo.png" alt="Nordil" class="logo" />
+      <span class="app-title">Nordil-BH | Painel de Ponto</span>
+    </div>
+    <div class="topbar-right">
+      <span class="hello">Olá, DP!</span>
+      <button id="btnSair" class="btn btn-danger btn-xs">Sair</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Cards -->
+    <section class="cards">
+      <div class="card">
+        <div class="card-body">
+          <div class="card-label">Total de Funcionários</div>
+          <div id="totalFuncionarios" class="card-value">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="card-label">Arquivos Importados</div>
+          <div id="arquivosImportados" class="card-value">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="card-label">Jornadas Registradas</div>
+          <div id="totalJornadas" class="card-value">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="card-label">Faltas Detectadas</div>
+          <div id="faltas" class="card-value">0</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="card-label">Jornadas Incompletas</div>
+          <div id="incompletas" class="card-value">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Gráficos (3 cards) -->
+    <section class="charts">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Distribuição por Status</h6>
+          <canvas id="statusChart" height="150"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Análises (contagem de colaboradores)</h6>
+          <canvas id="analisesChart" height="150"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Horas Extras por Mês</h6>
+          <canvas id="overtimeChart" height="150"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filtros -->
+    <section class="filters-row">
+      <input id="csvFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" />
+      <button id="importarCSV" class="btn btn-primary btn-sm">Importar Arquivo</button>
+
+      <input id="filtroNome" type="text" class="form-control form-control-sm" placeholder="Buscar por nome" />
+      <input id="filtroData" type="text" class="form-control form-control-sm" placeholder="Buscar por data (DD/MM/AAAA)" />
+
+      <select id="filtroMes" title="Filtrar por mês">
+        <option value="">Todos</option>
+        <option>01</option><option>02</option><option>03</option><option>04</option>
+        <option>05</option><option>06</option><option>07</option><option>08</option>
+        <option>09</option><option>10</option><option>11</option><option>12</option>
+      </select>
+
+      <select id="filtroAno" title="Filtrar por ano">
+        <option value="">Todos</option>
+      </select>
+
+      <select id="filtroColaborador" title="Filtrar por colaborador">
+        <option value="">Todos</option>
+      </select>
+
+      <select id="filtroStatus" title="Filtrar por status">
+        <option value="">Status</option>
+        <option value="presente">Presente</option>
+        <option value="incompleto">Incompleto</option>
+        <option value="falta">Falta</option>
+      </select>
+
+      <select id="filtroAnalise" class="form-select form-select-sm" style="width:220px;">
+        <option value="">Análises</option>
+        <option value="menos4batidas">Menos de 4 batidas</option>
+        <option value="intervaloLt1h">Intervalo almoço &lt; 1h</option>
+        <option value="intervaloGt2h">Intervalo almoço &gt; 2h</option>
+        <option value="jornadaGt8h">Jornada &gt; 8h</option>
+        <option value="jornadaGt10h">Jornada &gt; 10h</option>
+        <option value="interjornadaLt11h">Interjornada &lt; 11h</option>
+      </select>
+
+      <button id="limparFiltro" class="btn btn-outline-primary btn-sm">Limpar Filtros</button>
+      <button id="exportarDados" class="btn btn-success btn-sm">Exportar Dados</button>
+      <button id="limparTudo" class="btn btn-danger btn-sm">Limpar Todos os Dados</button>
+    </section>
+
+    <!-- Tabela -->
+    <section class="table-card card">
+      <div class="card-body">
+        <div class="table-responsive" id="tableWrapper">
+          <table id="tabelaPonto" class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Colaborador</th>
+                <th>Data</th>
+                <th>Início (Executado)</th>
+                <th>Almoço</th>
+                <th>Retorno</th>
+                <th>Saída</th>
+                <th>Tempo Almoço</th>
+                <th>Jornada</th>
+                <th>Início (Planejado)</th>
+                <th>Saída (Planejado)</th>
+                <th>Jornada (P)</th>
+                <th>Tolerância</th>
+                <th>Diferença</th>
+                <th>Observações</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody><!-- preenchido via JS --></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+<script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+  import { firebaseConfig } from "./firebaseConfig.js";
+
+  // inicia Firebase
+  const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  // perfis permitidos no dashboard
+  const PERMITIDOS = new Set(["admin","gestor","dp"]);
+
+  // só entra logado e com perfil permitido
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = "admin.html"; return; }
+
+    try {
+      const snap = await getDoc(doc(db, "usuarios", user.uid));
+      const tipo = (snap.data()?.tipo || "").toLowerCase();
+      if (!PERMITIDOS.has(tipo)) {
+        await signOut(auth);
+        alert("Sem permissão para acessar o dashboard.");
+        window.location.href = "admin.html";
+      }
+    } catch {
+      // se não conseguir ler o perfil, bloqueia por segurança
+      await signOut(auth);
+      window.location.href = "admin.html";
+    }
+  });
+
+  // sair
+  document.getElementById("btnSair")?.addEventListener("click", async () => {
+    try { await signOut(auth); } finally { window.location.href = "admin.html"; }
+  });
+</script>
+
+  <!-- Script principal -->
+  <script src="script.js" defer></script>
+</body>
+</html>

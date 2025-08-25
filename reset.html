@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Redefinir senha | Nordil-BH</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="admin-container">
+    <img src="logo.png" class="logo" alt="Nordil" />
+    <h2>Redefinir senha</h2>
+
+    <form id="resetForm">
+      <input id="newPass"  type="password" placeholder="Nova senha" required />
+      <input id="newPass2" type="password" placeholder="Confirmar senha" required />
+      <button type="submit" class="btn btn-primary">Salvar nova senha</button>
+      <button type="button" id="goLogin" class="btn btn-secondary">Voltar ao login</button>
+    </form>
+
+    <div id="resetMsg" class="feedback-msg"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, verifyPasswordResetCode, confirmPasswordReset } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import { firebaseConfig } from "./firebaseConfig.js";
+
+    const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const msg     = document.getElementById("resetMsg");
+    const form    = document.getElementById("resetForm");
+    const goLogin = document.getElementById("goLogin");
+    const params  = new URLSearchParams(location.search);
+    const oobCode = params.get("oobCode");
+
+    // valida o código do link
+    if (!oobCode) {
+      msg.textContent = "Link inválido ou expirado.";
+      form.style.display = "none";
+    } else {
+      try {
+        await verifyPasswordResetCode(auth, oobCode);
+        msg.textContent = "Digite e confirme sua nova senha.";
+      } catch {
+        msg.textContent = "Link inválido ou expirado.";
+        form.style.display = "none";
+      }
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const p1 = document.getElementById("newPass").value;
+      const p2 = document.getElementById("newPass2").value;
+
+      if (p1 !== p2) { msg.textContent = "As senhas não conferem."; return; }
+      if (p1.length < 6) { msg.textContent = "A senha deve ter pelo menos 6 caracteres."; return; }
+
+      try {
+        await confirmPasswordReset(auth, oobCode, p1);
+        msg.textContent = "Senha alterada com sucesso! Redirecionando…";
+        setTimeout(() => location.href = "admin.html", 1200);
+      } catch (err) {
+        msg.textContent = "Não foi possível alterar a senha: " + (err?.message || err);
+      }
+    });
+
+    goLogin?.addEventListener("click", () => location.href = "admin.html");
+  </script>
+</body>
+</html>
